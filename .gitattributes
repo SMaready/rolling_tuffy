@@ -1,0 +1,15 @@
+# Store every text file with Linux line endings (LF) in the repo AND in everyone's
+# working copy, whatever their Git settings. Keeps scripts runnable in WSL/Docker.
+* text=auto eol=lf
+
+# Windows-only scripts keep Windows line endings.
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+
+# Binary files: never touch line endings.
+*.uasset binary
+*.umap   binary
+*.png    binary
+*.jpg    binary
+*.dae    binary
+*.stl    binary

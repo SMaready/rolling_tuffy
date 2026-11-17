@@ -1,0 +1,73 @@
+# =============================================================================
+# Rolling Tuffy - ROS 2 dev container (Docker Engine running INSIDE WSL2 Ubuntu)
+#
+#   cd docker
+#   docker compose build          # first time, or after editing the Dockerfile
+#   docker compose up -d          # start the container in the background
+#   docker compose exec ros bash  # open a shell in it (repeat for more shells)
+#   docker compose down           # stop it  (add -v to also wipe build output)
+# =============================================================================
+
+# Prefix for everything compose creates (e.g. the volume "rolling_tuffy_ws").
+name: rolling_tuffy
+
+services:
+  ros:
+    # ---- Image ----------------------------------------------------------------
+    # Build from ./Dockerfile. USER_UID/USER_GID default to 1000 (normal WSL user);
+    # override with:  USER_UID=$(id -u) USER_GID=$(id -g) docker compose build
+    build:
+      context: .
+      args:
+        USER_UID: "${USER_UID:-1000}"
+        USER_GID: "${USER_GID:-1000}"
+    image: rolling_tuffy/ros:jazzy
+    container_name: rolling_tuffy_ros
+
+    # ---- Networking + processes ----------------------------------------------
+    # host network: Unreal on Windows reaches ws://127.0.0.1:<port> (WSL forwards
+    #   localhost), and ROS 2 nodes discover each other without extra setup.
+    # host IPC: ROS 2 can pass big messages (scans, maps) through shared memory.
+    # init: forwards Ctrl+C / stop signals properly and cleans up dead processes.
+    # stdin_open + tty: interactive shells behave normally (like docker run -it).
+    network_mode: host
+    ipc: host
+    init: true
+    stdin_open: true
+    tty: true
+
+    # ---- Environment ----------------------------------------------------------
+    # DISPLAY / WAYLAND_DISPLAY / XDG_RUNTIME_DIR: Gazebo and RViz windows open
+    #   on the Windows desktop through WSLg.
+    # LD_LIBRARY_PATH: WSL's GPU driver libraries, so graphics use your real GPU.
+    # ROS_DOMAIN_ID: our ROS "channel"; keeps us separate from other ROS systems.
+    environment:
+      DISPLAY: "${DISPLAY:-:0}"
+      WAYLAND_DISPLAY: "${WAYLAND_DISPLAY:-wayland-0}"
+      XDG_RUNTIME_DIR: /mnt/wslg/runtime-dir
+      LD_LIBRARY_PATH: /usr/lib/wsl/lib
+      ROS_DOMAIN_ID: "43"
+      # Uncomment ONLY if Gazebo shows a black window or crashes (forces slow CPU drawing):
+      # LIBGL_ALWAYS_SOFTWARE: "1"
+
+    # ---- Shared folders ---------------------------------------------------------
+    # Standard ROS layout inside the container:
+    #   ~/rolling_tuffy_ws/                    <- workspace (build/ install/ log/ kept in a volume)
+    #   ~/rolling_tuffy_ws/src/rolling_tuffy   <- this repo, live-shared with your PC
+    volumes:
+      - ws:/home/dev/rolling_tuffy_ws          # named volume -> "rolling_tuffy_ws"
+      - ..:/home/dev/rolling_tuffy_ws/src/rolling_tuffy
+      # WSLg display sockets + GPU driver files (read-only)
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /mnt/wslg:/mnt/wslg
+      - /usr/lib/wsl:/usr/lib/wsl:ro
+
+    # ---- GPU --------------------------------------------------------------------
+    # WSL's connection to the Windows graphics driver.
+    devices:
+      - /dev/dxg:/dev/dxg
+
+# Named volume for colcon's build/, install/ and log/. Survives rebuilds and
+# `docker compose down`; wipe it with `docker compose down -v`.
+volumes:
+  ws:

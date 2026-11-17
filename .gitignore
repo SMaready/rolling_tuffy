@@ -1,0 +1,18 @@
+# ROS / colcon
+build/
+install/
+log/
+__pycache__/
+*.pyc
+.pytest_cache/
+# Local settings
+.env
+# Unreal (add your project folder name in front if it lives in a subfolder)
+**/Binaries/
+**/Intermediate/
+**/Saved/
+**/DerivedDataCache/
+**/.vs/
+*.sln
+*.slnx
+.vsconfig
